@@ -1,1 +1,6 @@
-# mpi_cude_omp_hw2
+Second hw in Parallel computing.
+This project includes:
+	mpi
+	open mp
+	cuda
+
