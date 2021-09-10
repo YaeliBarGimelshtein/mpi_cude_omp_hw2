@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     
     if(input_size % num_procs != 0)
         extra_work = input_size % num_procs;
-    
+
     //BUFFER THAT HOLD A SUBSET OF THE INPUT FOR EACH PROCESS 
     int* work_arr_nums = (int*)malloc(sizeof(int)*num_work_for_each);
     
@@ -72,7 +72,6 @@ int main(int argc, char *argv[])
             private_hist[work_arr_nums[i]]++;
         }
         
-        /*
         //RECIEVE THE OTHER HALF OF HISTOGRAM FROM OTHER PROC
         int other_hist[SIZE] = {0};
         MPI_Recv(other_hist, SIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -84,38 +83,47 @@ int main(int argc, char *argv[])
             histogram[i] = private_hist[i] + other_hist[i];
         }
 
+        //TAKE CARE OF RESIDUALS
+        if(extra_work != 0)
+        {
+            int start = num_procs * num_work_for_each;
+#pragma omp parallel for shared(histogram)
+            for (int i = start; i < start + extra_work; i++)
+            {
+                histogram[input[i]]++;
+            }
+        }
+
         //OUTPUT
         print_hist(histogram, SIZE);
-        */
-        print_hist(private_hist, SIZE);
+
+        //FREE
+        free(input);
+
     }
     else
     {
         //CALCULATE HALF WITH OPENMP
-#pragma omp parallel
+        int private_hist[SIZE] = {0};
+#pragma omp parallel shared(private_hist)
         {
             int num_threads = omp_get_num_threads();
-            int* hist_for_each_thread[num_threads];
-            printf("from process 1 , num threads is %d\n", num_threads);
-        }
-        
-        /*
-#pragma omp parallel for shared(hist_for_each_thread)
-        for (int i = 0; i < num_threads; i++)
-        {
-            hist_for_each_thread[i] = (int*)calloc(SIZE, sizeof(int));
-        }
-        
+            int thread_id = omp_get_thread_num();
+            int work_each_thread = num_work_for_each / num_threads;
 
-#pragma omp parallel for shared(work_arr_nums,hist_for_each_thread)
-        for (int i = 0; i < num_work_for_each; i++)
-        {
-            
+            for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
+            {
+                private_hist[work_arr_nums[i]]++;
+            }
         }
+        MPI_Send(private_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD);
+        
+        
         
         //CALCULATE HALF WITH CUDA
-        */
+        
 
     }
+    free(work_arr_nums);
     return 0;
 }
