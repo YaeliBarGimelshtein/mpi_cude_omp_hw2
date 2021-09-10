@@ -1,5 +1,5 @@
 build:
-	mpicc -c histogram.c
+	mpicc -c histogram.c 
 	mpicc -o exec histogram.o  
 
 clean:

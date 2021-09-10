@@ -5,57 +5,31 @@
 #include <omp.h>
 
 #define ROOT 0
+#define SIZE 256
 
-typedef struct 
-{
-    int number;
-    int count_of_number;
-} Hist;
 
-void create_hist_type(MPI_Datatype* hist_type)
-{
-    MPI_Type_contiguous(2, MPI_INT, hist_type);
-    MPI_Type_commit(hist_type);
-}
-
-void print_hist(Hist* histogram)
+void print_hist(const int* histogram, int size)
 {  
-    printf("%d : %d\n",histogram->number, histogram->count_of_number); 
-}
-
-int calculate_distinct_nums(int* input, int input_size)
-{
-    int different_nums = 1;
-#pragma omp parallel for shared(input) reduction(+: different_nums)
-    for (int i = 0; i < input_size; i++)
+    printf("The histogram:\n");
+    for (int i = 0; i < size; i++)
     {
-        int j = 0;
-        for (j = 0; j < i; j++)
-        {
-            if (input[i] == input[j])
-                break;
-        }
-    if (i == j)
-        different_nums++;
+        if(histogram[i] != 0)
+            printf("%d : %d\n",i, histogram[i]); 
     }
-    return different_nums;
 }
 
 int main(int argc, char *argv[])
 {
     //GENERAL INTEGERS NEEDED
-    int my_rank, num_procs, input_size, subset_size;
+    int my_rank, num_procs, input_size;
     int* input;
-    MPI_Datatype hist_type;
-    Hist* histogram;
+    int histogram[SIZE] = {0};
     
     //MPI INIT
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs); 
 
-    //CREATE NEW MPI TYPE == HIST
-    create_hist_type(&hist_type);
 
     if(my_rank == ROOT)
     {
@@ -64,22 +38,20 @@ int main(int argc, char *argv[])
         getchar();
     
         input = (int*)malloc(sizeof(int)*input_size); 
-        char ch;
 
         for (int i = 0; i < input_size; i++)
-           scanf("%d",&input[i]); 
-        
-        //CREATE THE HISTOGRAM
-        int different_nums = calculate_distinct_nums(input, input_size);
-        histogram = (Hist*)malloc(sizeof(Hist)*different_nums);
-        
+        {
+            scanf("%d",&input[i]); 
+        }  
     }
+
     //CAST TO ALL THE INPUT SIZE
     MPI_Bcast(&input_size, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     
     //CALCULATING FOR EACH PROCESS HOW MANY NUMBERS TO CHECK
     int num_work_for_each = input_size / num_procs;
     int extra_work = 0;
+    
     if(input_size % num_procs != 0)
         extra_work = input_size % num_procs;
     
@@ -89,43 +61,60 @@ int main(int argc, char *argv[])
     //THE ROOT DIVIDES THE WORK BETWEEN THE PROCESSES
     MPI_Scatter(input,num_work_for_each,MPI_INT,work_arr_nums,num_work_for_each,MPI_INT,ROOT,MPI_COMM_WORLD); 
 
-    //CALCULATE SIZE OF SUBSET FOR EACH PROC
-    subset_size = calculate_distinct_nums(work_arr_nums, num_work_for_each);
-
     //COMPUTE THE HIST OF EACH SUBSET
     if(my_rank == ROOT)
     {
-        Hist* proc_hist_answer = (Hist*)malloc(sizeof(Hist)*subset_size);
-
-        //CREATE ALL DISTINCT NUMBERS
+        //COUNT HIST BY OPENMP
+        int private_hist[SIZE] = {0};
+#pragma omp parallel for shared(work_arr_nums) reduction(+ : private_hist)
         for (int i = 0; i < num_work_for_each; i++)
         {
-            for (int j = 0; j < i; j++)
-            {
-                if(proc_hist_answer[j].number == work_arr_nums[i])
-                    break;
-            }
-            proc_hist_answer[i].number = work_arr_nums[i];
+            private_hist[work_arr_nums[i]]++;
         }
         
-        //COUNT HIST
-        int count = 0;
-    
-        for (int i = 0; i < subset_size; i++)
+        /*
+        //RECIEVE THE OTHER HALF OF HISTOGRAM FROM OTHER PROC
+        int other_hist[SIZE] = {0};
+        MPI_Recv(other_hist, SIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        //MERGE THE TWO HISTS
+#pragma omp parallel for shared(private_hist, other_hist)
+        for (int i = 0; i < SIZE; i++)
         {
-    #pragma omp parallel for shared(work_arr_nums, proc_hist_answer) reduction(+: count)
-            for (int j = 0; j < num_work_for_each; j++)
-            {
-                if(work_arr_nums[j] == proc_hist_answer[i].number)
-                    count++;
-            }
-            proc_hist_answer[i].count_of_number = count;
+            histogram[i] = private_hist[i] + other_hist[i];
         }
-        
-        
+
+        //OUTPUT
+        print_hist(histogram, SIZE);
+        */
+        print_hist(private_hist, SIZE);
     }
     else
     {
+        //CALCULATE HALF WITH OPENMP
+#pragma omp parallel
+        {
+            int num_threads = omp_get_num_threads();
+            int* hist_for_each_thread[num_threads];
+            printf("from process 1 , num threads is %d\n", num_threads);
+        }
+        
+        /*
+#pragma omp parallel for shared(hist_for_each_thread)
+        for (int i = 0; i < num_threads; i++)
+        {
+            hist_for_each_thread[i] = (int*)calloc(SIZE, sizeof(int));
+        }
+        
+
+#pragma omp parallel for shared(work_arr_nums,hist_for_each_thread)
+        for (int i = 0; i < num_work_for_each; i++)
+        {
+            
+        }
+        
+        //CALCULATE HALF WITH CUDA
+        */
 
     }
     return 0;
