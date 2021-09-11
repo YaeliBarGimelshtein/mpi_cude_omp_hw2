@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         MPI_Recv(other_hist, SIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         //MERGE THE TWO HISTS
-#pragma omp parallel for shared(private_hist, other_hist)
+#pragma omp parallel for shared(private_hist, other_hist) reduction(+ : histogram)
         for (int i = 0; i < SIZE; i++)
         {
             histogram[i] = private_hist[i] + other_hist[i];
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
         if(extra_work != 0)
         {
             int start = num_procs * num_work_for_each;
-#pragma omp parallel for shared(histogram)
+#pragma omp parallel for reduction(+ : histogram)
             for (int i = start; i < start + extra_work; i++)
             {
                 histogram[input[i]]++;
@@ -104,6 +104,37 @@ int main(int argc, char *argv[])
     else
     {
         //CALCULATE HALF WITH OPENMP
+        /*
+        int private_hist[SIZE] = {0};
+#pragma omp parallel
+    {
+        int num_threads = omp_get_num_threads();
+        int thread_id = omp_get_thread_num();
+
+        #pragma omp critical
+        int* thread_hist[num_threads];
+
+        for (int i = 0; i < num_threads; i++)
+        {
+            thread_hist[i] = (int*)calloc(SIZE, sizeof(int));
+        }
+
+        int work_each_thread = num_work_for_each / num_threads;
+
+        for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
+        {
+            thread_hist[thread_id][i]++;
+        }
+    }
+*/
+        
+
+
+
+
+
+
+
         int private_hist[SIZE] = {0};
 #pragma omp parallel shared(private_hist)
         {
