@@ -125,8 +125,20 @@ int main(int argc, char *argv[])
         {
             thread_hist[thread_id][i]++;
         }
+
+        #pragma omp critical
+        for (int i = 0; i < num_threads; i++)
+        {
+            for (int j = 0; j < SIZE; j++)
+            {
+                private_hist[j] += thread_hist[i][j];
+            }
+            
+        }
     }
-*/
+    */
+    
+
         
 
 
