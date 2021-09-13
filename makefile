@@ -1,7 +1,7 @@
 build:
-	mpicc -c histogram.c 
-	mpicc -o exec histogram.o -fopenmp
-
+	mpicxx -fopenmp -c histogram.c -o histogram.o
+	mpicxx -fopenmp -o exec  histogram.o 
+	
 clean:
 	rm -f *.o exec
 

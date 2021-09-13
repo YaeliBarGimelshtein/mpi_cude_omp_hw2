@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     //THE ROOT DIVIDES THE WORK BETWEEN THE PROCESSES
     MPI_Scatter(input,num_work_for_each,MPI_INT,work_arr_nums,num_work_for_each,MPI_INT,ROOT,MPI_COMM_WORLD); 
 
-    //COMPUTE THE HIST OF EACH SUBSET
+    //COMPUTE THE HIST OF SUBSET
     if(my_rank == ROOT)
     {
         //COUNT HIST BY OPENMP
@@ -76,14 +76,14 @@ int main(int argc, char *argv[])
         //RECIEVE THE OTHER HALF OF HISTOGRAM FROM OTHER PROC
         int other_hist[SIZE] = {0};
         MPI_Recv(other_hist, SIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+        
         //MERGE THE TWO HISTS
 #pragma omp parallel for shared(private_hist, other_hist) reduction(+ : histogram)
         for (int i = 0; i < SIZE; i++)
         {
             histogram[i] = private_hist[i] + other_hist[i];
         }
-
+        
         //TAKE CARE OF RESIDUALS
         if(extra_work != 0)
         {
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     else
     {
         //CALCULATE HALF WITH OPENMP
-        /*
+        
         int private_hist[SIZE] = {0};
         int* thread_hist[OMP_NUM_THREADS];
         omp_set_num_threads(OMP_NUM_THREADS);
@@ -117,28 +117,17 @@ int main(int argc, char *argv[])
         }
         
 
-#pragma omp parallel
-    {
-        //printf("num threads is %d\n", omp_get_num_threads());
-        int thread_id = omp_get_thread_num();
-        int work_each_thread = num_work_for_each / OMP_NUM_THREADS;
-
-        for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
+#pragma omp parallel shared(thread_hist)
         {
-            thread_hist[thread_id][i]++;
-        }
-    }
+            int thread_id = omp_get_thread_num();
+            int work_each_thread = num_work_for_each / OMP_NUM_THREADS;
 
-        for (int i = 0; i < OMP_NUM_THREADS; i++)
-        {
-            printf(" array %d \n", i);
-            for (int j = 0; j < SIZE; j++)
+            for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
             {
-                if(thread_hist[i][j] != 0)
-                    printf("%d : %d \n", j, thread_hist[i][j]);
+                thread_hist[thread_id][work_arr_nums[i]]++;
             }
         }
-
+        
         for (int i = 0; i < OMP_NUM_THREADS; i++)
         {
             for (int j = 0; j < SIZE; j++)
@@ -146,10 +135,11 @@ int main(int argc, char *argv[])
                 private_hist[j] += thread_hist[i][j];
             }
         }
+        
 
         MPI_Send(private_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD);
-*/
 
+/*
         int private_hist[SIZE] = {0};
 #pragma omp parallel shared(private_hist)
         {
@@ -163,7 +153,7 @@ int main(int argc, char *argv[])
             }
         }
         MPI_Send(private_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD);
-        
+        */
         
         
         //CALCULATE HALF WITH CUDA
