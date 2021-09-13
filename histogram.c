@@ -6,6 +6,7 @@
 
 #define ROOT 0
 #define SIZE 256
+#define OMP_NUM_THREADS 2
 
 
 void print_hist(const int* histogram, int size)
@@ -106,46 +107,48 @@ int main(int argc, char *argv[])
         //CALCULATE HALF WITH OPENMP
         /*
         int private_hist[SIZE] = {0};
-#pragma omp parallel
-    {
-        int num_threads = omp_get_num_threads();
-        int thread_id = omp_get_thread_num();
+        int* thread_hist[OMP_NUM_THREADS];
+        omp_set_num_threads(OMP_NUM_THREADS);
 
-        #pragma omp critical
-        int* thread_hist[num_threads];
-
-        for (int i = 0; i < num_threads; i++)
+#pragma omp parallel for shared(thread_hist)
+        for (int i = 0; i < OMP_NUM_THREADS; i++)
         {
             thread_hist[i] = (int*)calloc(SIZE, sizeof(int));
         }
+        
 
-        int work_each_thread = num_work_for_each / num_threads;
+#pragma omp parallel
+    {
+        //printf("num threads is %d\n", omp_get_num_threads());
+        int thread_id = omp_get_thread_num();
+        int work_each_thread = num_work_for_each / OMP_NUM_THREADS;
 
         for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
         {
             thread_hist[thread_id][i]++;
         }
+    }
 
-        #pragma omp critical
-        for (int i = 0; i < num_threads; i++)
+        for (int i = 0; i < OMP_NUM_THREADS; i++)
+        {
+            printf(" array %d \n", i);
+            for (int j = 0; j < SIZE; j++)
+            {
+                if(thread_hist[i][j] != 0)
+                    printf("%d : %d \n", j, thread_hist[i][j]);
+            }
+        }
+
+        for (int i = 0; i < OMP_NUM_THREADS; i++)
         {
             for (int j = 0; j < SIZE; j++)
             {
                 private_hist[j] += thread_hist[i][j];
             }
-            
         }
-    }
-    */
-    
 
-        
-
-
-
-
-
-
+        MPI_Send(private_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD);
+*/
 
         int private_hist[SIZE] = {0};
 #pragma omp parallel shared(private_hist)
