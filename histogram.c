@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>
+#include "cudaHeader.h"
 
 #define ROOT 0
 #define SIZE 256
@@ -104,6 +105,22 @@ int main(int argc, char *argv[])
     }
     else
     {
+        num_work_for_each /= 2;
+        int* work_arr_omp = (int*)calloc(num_work_for_each, sizeof(int));
+        int* work_arr_cuda = (int*)calloc(num_work_for_each, sizeof(int));
+
+        for (int i = 0; i < num_work_for_each; i++)
+        {
+            work_arr_omp[i] = work_arr_nums[i];
+        }
+
+        for (int i = num_work_for_each; i < num_work_for_each*2; i++)
+        {
+            int j = 0;
+            work_arr_cuda[j] = work_arr_nums[i];
+            j++;
+        }
+        
         //CALCULATE HALF WITH OPENMP
         ///////////////////////////////////////////////////////////////////////////////
 
@@ -130,7 +147,7 @@ int main(int argc, char *argv[])
 
             for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
             {
-                thread_hist[thread_id][work_arr_nums[i]]++;
+                thread_hist[thread_id][work_arr_omp[i]]++;
             }
         }
         
@@ -153,13 +170,28 @@ int main(int argc, char *argv[])
             }
         }
         ////////////////////////////////////////////////////////////////////////////////////////
-        
-        MPI_Send(private_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD);
-        
-        
         //CALCULATE HALF WITH CUDA
+        ////////////////////////////////////////////////////////////////////////////////////////
         
+        int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
 
+        ////////////////////////////////////////////////////////////////////////////////////////
+        //MERGA CUDA WITH OMP
+        int total_hist[SIZE] = {0};
+        for (int i = 0; i < SIZE; i++)
+        {
+            total_hist[i] = private_hist[i] + cuda_hist[i];
+        }
+        
+        //FREE ALL
+        for (int i = 0; i < OMP_NUM_THREADS; i++)
+        {
+            free(thread_hist[i]);
+        }
+        free(work_arr_cuda);
+        free(work_arr_omp);
+
+        MPI_Send(total_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
     }
 
     //FREE ALL
