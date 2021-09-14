@@ -105,25 +105,27 @@ int main(int argc, char *argv[])
     }
     else
     {
+        //SPLIT THE WORK INTO 2
         num_work_for_each /= 2;
         int* work_arr_omp = (int*)calloc(num_work_for_each, sizeof(int));
         int* work_arr_cuda = (int*)calloc(num_work_for_each, sizeof(int));
 
+#pragma omp parallel for shared(work_arr_omp, work_arr_nums)
         for (int i = 0; i < num_work_for_each; i++)
         {
             work_arr_omp[i] = work_arr_nums[i];
         }
 
+        int j = 0;
+#pragma omp parallel for shared(work_arr_cuda, work_arr_nums)
         for (int i = num_work_for_each; i < num_work_for_each*2; i++)
         {
-            int j = 0;
             work_arr_cuda[j] = work_arr_nums[i];
             j++;
         }
         
-        //CALCULATE HALF WITH OPENMP
-        ///////////////////////////////////////////////////////////////////////////////
-
+        //////////////////////////CALCULATE HALF WITH OPENMP///////////////////////////
+    
         //SET THE NUMBERS
         int private_hist[SIZE] = {0};
         int* thread_hist[OMP_NUM_THREADS];
@@ -169,13 +171,13 @@ int main(int argc, char *argv[])
                 private_hist[work_arr_nums[i]]++;
             }
         }
-        ////////////////////////////////////////////////////////////////////////////////////////
-        //CALCULATE HALF WITH CUDA
-        ////////////////////////////////////////////////////////////////////////////////////////
+        
+        //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
         
         int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
 
-        ////////////////////////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////////////////////
+
         //MERGA CUDA WITH OMP
         int total_hist[SIZE] = {0};
         for (int i = 0; i < SIZE; i++)
