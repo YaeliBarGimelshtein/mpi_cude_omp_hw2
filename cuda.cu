@@ -1,6 +1,6 @@
 #include "cudaHeader.h"
 
-__global__ void calculateHistByCuda(int* input, int* output)
+__global__ void calculateHistByCuda(int* input, int* histogram)
 {
     //CREATE HIST FOR EACH BLOCK
     __shared__ int private_hist[SIZE] = {0};
@@ -13,7 +13,8 @@ __global__ void calculateHistByCuda(int* input, int* output)
     //private_hist[input[index]]++;
     
     //MERGE ALL PRIVATE HISTS INTO OUTPUT
-    output[index] += private_hist[index];
+    atomicAdd(&histogram[index], 1);
+    //output[index] += private_hist[index];
 }
 
 
@@ -22,8 +23,10 @@ __global__ void calculateHistByCuda(int* input, int* output)
 int* calculateHistByCuda(int* input, int size_of_input)
 {
     int result[SIZE] = {0};
-    int num_threads_per_block = size_of_input / num_threads_per_block;
+    int num_blocks = size_of_input / NUM_THREADS_PER_BLOCK;
+    if(size_of_input % NUM_THREADS_PER_BLOCK != 0)
+        num_blocks++;
 
-    calculateHistByCuda<<<NUM_BLOCKS, num_threads_per_block>>>(input, result);
+    calculateHistByCuda<<<num_blocks, NUM_THREADS_PER_BLOCK>>>(input, result);
     return result;
 }

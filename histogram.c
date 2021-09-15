@@ -125,7 +125,49 @@ int main(int argc, char *argv[])
         }
         
         //////////////////////////CALCULATE HALF WITH OPENMP///////////////////////////
-    
+        int omp_hist[SIZE] = {0};
+
+#pragma omp parallel
+        {
+            //SET THE NUMBERS
+            int thread_id = omp_get_thread_num();
+            int num_threads = omp_get_num_threads();
+
+            #pragma omp single
+            int* thread_hist[num_threads];
+            
+            //ALLOCATE THE HISTS OF THE THREADS
+            #pragma omp parallel for shared(thread_hist)
+            for (int i = 0; i < num_threads; i++)
+            {
+                thread_hist[i] = (int*)calloc(SIZE, sizeof(int));
+            }
+
+            //COUNT HIST BY OPENMP
+            #pragma omp parallel for shared(thread_hist, work_arr_omp)
+            for (int i = 0; i < num_work_for_each; i++)
+            {
+                thread_hist[thread_id][work_arr_omp[i]]++;
+            }
+
+            //UNITE ALL THE COPIES
+            #pragma omp parallel for shared(omp_hist, thread_hist)
+            for (int i = 0; i < OMP_NUM_THREADS; i++)
+            {
+                for (int j = 0; j < SIZE; j++)
+                {
+                    omp_hist[j] += thread_hist[i][j];
+                }
+            }
+
+            //FREE ALL
+            #pragma omp parallel for shared(thread_hist)
+            for (int i = 0; i < OMP_NUM_THREADS; i++)
+            {
+                free(thread_hist[i]);
+            }
+        }
+        /*
         //SET THE NUMBERS
         int private_hist[SIZE] = {0};
         int* thread_hist[OMP_NUM_THREADS];
@@ -170,7 +212,7 @@ int main(int argc, char *argv[])
             {
                 private_hist[work_arr_nums[i]]++;
             }
-        }
+        }*/
         
         //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
         
@@ -180,16 +222,13 @@ int main(int argc, char *argv[])
 
         //MERGA CUDA WITH OMP
         int total_hist[SIZE] = {0};
+
         for (int i = 0; i < SIZE; i++)
         {
-            total_hist[i] = private_hist[i] + cuda_hist[i];
+            total_hist[i] = omp_hist[i] + cuda_hist[i];
         }
         
         //FREE ALL
-        for (int i = 0; i < OMP_NUM_THREADS; i++)
-        {
-            free(thread_hist[i]);
-        }
         free(work_arr_cuda);
         free(work_arr_omp);
 
