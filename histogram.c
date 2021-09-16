@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
     }
     else
     {
+        /*
         //SPLIT THE WORK INTO 2
         num_work_for_each /= 2;
         int* work_arr_omp = (int*)calloc(num_work_for_each, sizeof(int));
@@ -122,104 +123,61 @@ int main(int argc, char *argv[])
         {
             work_arr_cuda[j] = work_arr_nums[i];
             j++;
-        }
+        }*/
         
         //////////////////////////CALCULATE HALF WITH OPENMP///////////////////////////
         int omp_hist[SIZE] = {0};
+        int** thread_hist;
+        int thread_id;
+        int num_threads;
 
 #pragma omp parallel
         {
             //SET THE NUMBERS
-            int thread_id = omp_get_thread_num();
-            int num_threads = omp_get_num_threads();
+            thread_id = omp_get_thread_num();
+            num_threads = omp_get_num_threads();
 
             #pragma omp single
-            int* thread_hist[num_threads];
-            
-            //ALLOCATE THE HISTS OF THE THREADS
-            #pragma omp parallel for shared(thread_hist)
-            for (int i = 0; i < num_threads; i++)
-            {
-                thread_hist[i] = (int*)calloc(SIZE, sizeof(int));
-            }
-
-            //COUNT HIST BY OPENMP
-            #pragma omp parallel for shared(thread_hist, work_arr_omp)
-            for (int i = 0; i < num_work_for_each; i++)
-            {
-                thread_hist[thread_id][work_arr_omp[i]]++;
-            }
-
-            //UNITE ALL THE COPIES
-            #pragma omp parallel for shared(omp_hist, thread_hist)
-            for (int i = 0; i < OMP_NUM_THREADS; i++)
-            {
-                for (int j = 0; j < SIZE; j++)
-                {
-                    omp_hist[j] += thread_hist[i][j];
-                }
-            }
-
-            //FREE ALL
-            #pragma omp parallel for shared(thread_hist)
-            for (int i = 0; i < OMP_NUM_THREADS; i++)
-            {
-                free(thread_hist[i]);
-            }
+            thread_hist = (int**)malloc(sizeof(int*)*num_threads);
         }
-        /*
-        //SET THE NUMBERS
-        int private_hist[SIZE] = {0};
-        int* thread_hist[OMP_NUM_THREADS];
-        omp_set_num_threads(OMP_NUM_THREADS);
 
         //ALLOCATE THE HISTS OF THE THREADS
-#pragma omp parallel for shared(thread_hist)
-        for (int i = 0; i < OMP_NUM_THREADS; i++)
+ #pragma omp parallel for shared(thread_hist)
+        for (int i = 0; i < num_threads; i++)
         {
             thread_hist[i] = (int*)calloc(SIZE, sizeof(int));
         }
-        
-        //COUNT HIST BY OPENMP
-        int work_each_thread;
-        int extra_work;
-#pragma omp parallel shared(thread_hist)
-        {
-            int thread_id = omp_get_thread_num();
-            work_each_thread = num_work_for_each / OMP_NUM_THREADS;
-            extra_work = num_work_for_each % OMP_NUM_THREADS;
 
-            for (int i = thread_id * work_each_thread; i < (thread_id + 1) * work_each_thread; i++)
-            {
-                thread_hist[thread_id][work_arr_omp[i]]++;
-            }
+        //COUNT HIST BY OPENMP
+#pragma omp parallel for shared(thread_hist, work_arr_nums)
+        for (int i = 0; i < num_work_for_each; i++)
+        {
+            //thread_hist[thread_id][work_arr_omp[i]]++;
+            thread_hist[thread_id][work_arr_nums[i]]++;
         }
-        
+
         //UNITE ALL THE COPIES
-        for (int i = 0; i < OMP_NUM_THREADS; i++)
+#pragma omp parallel for shared(omp_hist, thread_hist)
+        for (int i = 0; i < num_threads; i++)
         {
             for (int j = 0; j < SIZE; j++)
             {
-                private_hist[j] += thread_hist[i][j];
+                omp_hist[j] += thread_hist[i][j];
             }
         }
-
-        //TAKE CARE OF RESIDUALS
-        if(extra_work != 0)
+        //FREE ALL
+#pragma omp parallel for shared(thread_hist)
+        for (int i = 0; i < num_threads; i++)
         {
-            int start = OMP_NUM_THREADS * work_each_thread;
-            for (int i = start; i < start + extra_work; i++)
-            {
-                private_hist[work_arr_nums[i]]++;
-            }
-        }*/
-        
+            free(thread_hist[i]);
+        }
+
         //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
         
-        int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
+        //int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
-
+        /*
         //MERGA CUDA WITH OMP
         int total_hist[SIZE] = {0};
 
@@ -230,9 +188,10 @@ int main(int argc, char *argv[])
         
         //FREE ALL
         free(work_arr_cuda);
-        free(work_arr_omp);
+        free(work_arr_omp);*/
 
-        MPI_Send(total_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
+        //MPI_Send(total_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
+        MPI_Send(omp_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
     }
 
     //FREE ALL
