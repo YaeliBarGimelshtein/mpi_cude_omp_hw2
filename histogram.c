@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        /*
+        
         //SPLIT THE WORK INTO 2
         num_work_for_each /= 2;
         int* work_arr_omp = (int*)calloc(num_work_for_each, sizeof(int));
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         {
             work_arr_cuda[j] = work_arr_nums[i];
             j++;
-        }*/
+        }
         
         //////////////////////////CALCULATE HALF WITH OPENMP///////////////////////////
         int omp_hist[SIZE] = {0};
@@ -149,11 +149,10 @@ int main(int argc, char *argv[])
         }
 
         //COUNT HIST BY OPENMP
-#pragma omp parallel for shared(thread_hist, work_arr_nums)
+#pragma omp parallel for shared(thread_hist, work_arr_omp)
         for (int i = 0; i < num_work_for_each; i++)
         {
-            //thread_hist[thread_id][work_arr_omp[i]]++;
-            thread_hist[thread_id][work_arr_nums[i]]++;
+            thread_hist[thread_id][work_arr_omp[i]]++;
         }
 
         //UNITE ALL THE COPIES
@@ -174,10 +173,10 @@ int main(int argc, char *argv[])
 
         //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
         
-        //int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
+        int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
-        /*
+        
         //MERGA CUDA WITH OMP
         int total_hist[SIZE] = {0};
 
@@ -188,10 +187,11 @@ int main(int argc, char *argv[])
         
         //FREE ALL
         free(work_arr_cuda);
-        free(work_arr_omp);*/
+        free(work_arr_omp);
 
-        //MPI_Send(total_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
-        MPI_Send(omp_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
+        //SEND THE DATA BACK
+        MPI_Send(total_hist, SIZE, MPI_INT, ROOT, 1, MPI_COMM_WORLD); 
+        
     }
 
     //FREE ALL
