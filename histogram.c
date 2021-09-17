@@ -74,6 +74,9 @@ int main(int argc, char *argv[])
         {
             private_hist[work_arr_nums[i]]++;
         }
+
+        printf("the hist from proc 1 omp\n");
+        print_hist(private_hist, SIZE);
         
         //RECIEVE THE OTHER HALF OF HISTOGRAM FROM OTHER PROC
         int other_hist[SIZE] = {0};
@@ -170,6 +173,9 @@ int main(int argc, char *argv[])
         {
             free(thread_hist[i]);
         }
+
+        printf("the hist from proc 2 omp\n");
+        print_hist(omp_hist, SIZE);
 
         //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
         int cuda_hist[SIZE] = {0};
