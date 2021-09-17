@@ -172,8 +172,8 @@ int main(int argc, char *argv[])
         }
 
         //////////////////////CALCULATE HALF WITH CUDA////////////////////////////////////////////////
-        
-        int* cuda_hist = calculateHistByCuda(work_arr_cuda, num_work_for_each);
+        int cuda_hist[SIZE];
+        calculateHistByCuda(work_arr_cuda, num_work_for_each, cuda_hist);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         

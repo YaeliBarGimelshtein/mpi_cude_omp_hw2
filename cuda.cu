@@ -1,4 +1,8 @@
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <iostream>
 #include "cudaHeader.h"
+
 
 __global__ void calculateHistByCuda(int* input, int* histogram)
 {
@@ -20,9 +24,8 @@ __global__ void calculateHistByCuda(int* input, int* histogram)
 
 
 
-int* calculateHistByCuda(int* input, int size_of_input)
+int* calculateHistByCuda(int* input, int size_of_input, int* result)
 {
-    int result[SIZE] = {0};
     int num_blocks = size_of_input / NUM_THREADS_PER_BLOCK;
     if(size_of_input % NUM_THREADS_PER_BLOCK != 0)
         num_blocks++;
