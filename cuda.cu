@@ -14,7 +14,6 @@ __global__ void calculateHistByDevice(int* input, int* histogram)
 
     //INITIATE THE RESULTS
     private_hist[index] = 0;
-    __syncthreads();
 
     printf("check\n");
     
